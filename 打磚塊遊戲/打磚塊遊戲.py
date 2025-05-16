@@ -209,16 +209,54 @@ class Brick:
                     border_radius=6,
                 )
                 display_area.blit(glow_surface, (glow_rect.x, glow_rect.y))
+            elif self.brick_type == "multi":
+                # 藍色螢光外圈
+                neon_color = (0, 200, 255, 60)
+                neon_rect = pygame.Rect(
+                    self.rect.x - 12,
+                    self.rect.y - 12,
+                    self.rect.width + 24,
+                    self.rect.height + 24,
+                )
+                neon_surface = pygame.Surface(
+                    (neon_rect.width, neon_rect.height), pygame.SRCALPHA
+                )
+                pygame.draw.rect(
+                    neon_surface,
+                    neon_color,
+                    (0, 0, neon_rect.width, neon_rect.height),
+                    border_radius=12,
+                )
+                display_area.blit(neon_surface, (neon_rect.x, neon_rect.y))
+                # 亮藍色光條
+                glow_color = (0, 200, 255, 120)
+                glow_rect = pygame.Rect(
+                    self.rect.x - 4,
+                    self.rect.y - 4,
+                    self.rect.width + 8,
+                    self.rect.height + 8,
+                )
+                glow_surface = pygame.Surface(
+                    (glow_rect.width, glow_rect.height), pygame.SRCALPHA
+                )
+                pygame.draw.rect(
+                    glow_surface,
+                    glow_color,
+                    (0, 0, glow_rect.width, glow_rect.height),
+                    border_radius=6,
+                )
+                display_area.blit(glow_surface, (glow_rect.x, glow_rect.y))
             pygame.draw.rect(display_area, self.color, self.rect)
 
 
 class Ball:
-    def __init__(self, x, y, radius, color):
+    def __init__(self, x, y, radius, color, is_main=True):
         """
         初始化球\n
         x, y: 球的圓心座標\n
         radius: 球的半徑\n
         color: 球的顏色\n
+        is_main: 是否為主球（金球）
         """
         self.x = x  # 球的x座標
         self.y = y  # 球的y座標
@@ -227,6 +265,8 @@ class Ball:
         self.speed_x = 5  # 球的x速度
         self.speed_y = -5  # 球的y速度
         self.is_moving = False  # 球是否在移動
+        self.is_main = is_main  # 是否為主球（金球）
+        self.alive = True  # 是否存活
 
     def draw(self, display_area):
         """
@@ -260,6 +300,8 @@ class Ball:
 
         if self.y + self.radius >= bg_y:
             self.is_moving = False
+            if not self.is_main:
+                self.alive = False
 
         if (
             self.y + self.radius >= pad.rect.y
@@ -269,7 +311,7 @@ class Ball:
         ):
             self.speed_y = -abs(self.speed_y)
 
-        global score, lives, shake_until, can_control, game_state, win_by_win_brick, pad_effect_until, pad_effect_type
+        global score, lives, shake_until, can_control, game_state, win_by_win_brick, pad_effect_until, pad_effect_type, balls, can_launch_white_ball
         for brick in bricks:
             if not brick.hit:
                 dx = abs(self.x - (brick.rect.x + brick.rect.width / 2))
@@ -283,7 +325,6 @@ class Ball:
                         game_state = "win"
                         win_by_win_brick = True
                         return
-                    # 撞到回復磚塊時生命+1
                     if brick.brick_type == "recover":
                         lives += 1
                     elif brick.brick_type == "bomb":
@@ -297,6 +338,10 @@ class Ball:
                         pad.rect.width = max(pad.rect.width // 2, 30)
                         pad_effect_until = pygame.time.get_ticks() + 5000
                         pad_effect_type = "shrink"
+                    elif brick.brick_type == "multi":
+                        # 允許發射白球
+                        if sum(1 for b in balls if not b.is_main) < 1:
+                            can_launch_white_ball = True
                     else:
                         score += 1
                     if (
@@ -310,7 +355,7 @@ class Ball:
 
 ######################定義函式區######################
 def reset_game():
-    global bricks, ball, pad, score, lives, game_state, pause_until, win_by_win_brick
+    global bricks, ball, pad, score, lives, game_state, pause_until, win_by_win_brick, balls
     bricks.clear()
     total_bricks = bricks_row * bricks_column
     recover_count = random.randint(1, 10)
@@ -318,6 +363,7 @@ def reset_game():
     win_count = 3
     grow_count = random.randint(3, 5)
     shrink_count = random.randint(1, 2)
+    multi_count = 5
     all_indices = list(range(total_bricks))
     win_indices = random.sample(all_indices, win_count)
     left_indices = [i for i in all_indices if i not in win_indices]
@@ -328,6 +374,8 @@ def reset_game():
     grow_indices = random.sample(left_indices3, grow_count)
     left_indices4 = [i for i in left_indices3 if i not in grow_indices]
     shrink_indices = random.sample(left_indices4, shrink_count)
+    left_indices5 = [i for i in left_indices4 if i not in shrink_indices]
+    multi_indices = random.sample(left_indices5, multi_count)
     idx = 0
     for column in range(bricks_column):
         for row in range(bricks_row):
@@ -368,6 +416,13 @@ def reset_game():
                     random.randint(0, 255),
                 )
                 brick_type = "shrink"
+            elif idx in multi_indices:
+                color = (
+                    random.randint(0, 255),
+                    random.randint(0, 255),
+                    random.randint(0, 255),
+                )
+                brick_type = "multi"
             else:
                 color = (
                     random.randint(0, 255),
@@ -381,11 +436,17 @@ def reset_game():
     pad.rect.x = 0
     pad.rect.y = bg_y - 48
     pad.rect.width = bricks_width
-    ball.x = pad.rect.x + pad.rect.width // 2
-    ball.y = pad.rect.y - ball_radius
-    ball.speed_x = 5
-    ball.speed_y = -5
-    ball.is_moving = False
+    # 重設主球
+    main_ball = Ball(
+        pad.rect.x + pad.rect.width // 2,
+        pad.rect.y - ball_radius,
+        ball_radius,
+        ball_color,
+        is_main=True,
+    )
+    balls = [main_ball]
+    global ball
+    ball = main_ball
     score = 0
     lives = 3
     game_state = "ready"
@@ -497,6 +558,7 @@ ball_color = (255, 215, 0)  # 金色
 ball = Ball(
     pad.rect.x + pad.rect.width // 2, pad.rect.y - ball_radius, ball_radius, ball_color
 )  # 初始化球物件
+balls = [ball]  # 多球管理
 
 ######################遊戲結束設定######################
 
@@ -512,6 +574,8 @@ win_by_win_brick = False
 # 增長/縮短效果結束時間
 pad_effect_until = 0
 pad_effect_type = None
+# 新增一個變數，記錄是否可以發射白球
+can_launch_white_ball = False
 
 ######################主程式######################
 while True:  # 無限迴圈
@@ -553,49 +617,73 @@ while True:  # 無限迴圈
                 pad.rect.x = 0  # 如果底板的x座標小於0，則設定為0
             if pad.rect.x + pad.rect.width > bg_x:
                 pad.rect.x = bg_x - pad.rect.width  # 限制底板的x座標不超過視窗的寬度
-        if not ball.is_moving:
-            ball.x = pad.rect.x + pad.rect.width // 2  # 設定球的x座標
-            ball.y = pad.rect.y - ball_radius  # 設定球的y座標
+        # 發球時所有球都跟隨底板
+        if not any(b.is_moving for b in balls):
+            for b in balls:
+                b.x = pad.rect.x + pad.rect.width // 2
+                b.y = pad.rect.y - ball_radius
         else:
-            ball.move()
-            ball.check_collision(bricks)
-            # 檢查球是否掉落
+            for b in balls:
+                if b.is_moving:
+                    b.move()
+                    b.check_collision(bricks)
+            # 移除死亡的白球
+            balls = [b for b in balls if b.is_main or b.alive]
+            # 檢查主球是否掉落
             if not ball.is_moving:
                 lives -= 1
                 if lives <= 0:
                     game_state = "gameover"
                 else:
-                    # 球回到底板上，等待玩家發球
                     game_state = "ready"
             # 檢查是否全部磚塊都被擊中
             if all(brick.hit for brick in bricks):
                 game_state = "win"
     else:
-        # 遊戲未開始或結束時，球跟隨底板
+        # 遊戲未開始或結束時，所有球跟隨底板
         pad.rect.x = mos_x - pad.rect.width // 2
         if pad.rect.x < 0:
             pad.rect.x = 0
         if pad.rect.x + pad.rect.width > bg_x:
             pad.rect.x = bg_x - pad.rect.width
-        ball.x = pad.rect.x + pad.rect.width // 2
-        ball.y = pad.rect.y - ball_radius
+        for b in balls:
+            b.x = pad.rect.x + pad.rect.width // 2
+            b.y = pad.rect.y - ball_radius
 
     for event in pygame.event.get():  # 取得事件
         if event.type == pygame.QUIT:  # 如果事件是關閉視窗 (X)
             sys.exit()  # 結束程式
         if event.type == pygame.MOUSEBUTTONDOWN:
             if game_state == "ready":
-                ball.is_moving = True
+                for b in balls:
+                    b.is_moving = True
                 game_state = "playing"
             elif game_state in ("gameover", "win"):
                 reset_game()
             elif (
                 game_state == "playing"
-                and not ball.is_moving
+                and not any(b.is_moving for b in balls)
                 and lives > 0
                 and can_control
             ):
-                ball.is_moving = True
+                for b in balls:
+                    b.is_moving = True
+            elif (
+                game_state == "playing"
+                and can_launch_white_ball
+                and sum(1 for b in balls if not b.is_main) < 1
+            ):
+                # 發射白球
+                new_ball = Ball(
+                    pad.rect.x + pad.rect.width // 2,
+                    pad.rect.y - ball_radius,
+                    ball_radius,
+                    (255, 255, 255),
+                    is_main=False,
+                )
+                new_ball.is_moving = True
+                balls.append(new_ball)
+                can_launch_white_ball = False
 
     # 繪製磚塊、底板、球時加上震動偏移
     for brick in bricks:
@@ -604,12 +692,13 @@ while True:  # 無限迴圈
             pygame.draw.rect(screen, brick.color, temp_rect)
     pad_rect = pad.rect.move(shake_offset)
     pygame.draw.rect(screen, pad.color, pad_rect)
-    pygame.draw.circle(
-        screen,
-        ball.color,
-        (int(ball.x + shake_offset[0]), int(ball.y + shake_offset[1])),
-        ball.radius,
-    )
+    for b in balls:
+        pygame.draw.circle(
+            screen,
+            b.color,
+            (int(b.x + shake_offset[0]), int(b.y + shake_offset[1])),
+            b.radius,
+        )
 
     # 顯示分數在左上角
     score_surface = font.render(f"分數: {score}", True, (255, 255, 255))
