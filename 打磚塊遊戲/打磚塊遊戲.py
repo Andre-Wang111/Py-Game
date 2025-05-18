@@ -363,7 +363,7 @@ def reset_game():
     win_count = 3
     grow_count = random.randint(3, 5)
     shrink_count = random.randint(1, 2)
-    multi_count = 5
+    multi_count = 10
     all_indices = list(range(total_bricks))
     win_indices = random.sample(all_indices, win_count)
     left_indices = [i for i in all_indices if i not in win_indices]
@@ -481,6 +481,7 @@ bomb_count = random.randint(1, 15)
 win_count = 3
 grow_count = random.randint(3, 5)
 shrink_count = random.randint(1, 2)
+multi_count = 10
 all_indices = list(range(total_bricks))
 win_indices = random.sample(all_indices, win_count)
 left_indices = [i for i in all_indices if i not in win_indices]
@@ -491,6 +492,8 @@ left_indices3 = [i for i in left_indices2 if i not in bomb_indices]
 grow_indices = random.sample(left_indices3, grow_count)
 left_indices4 = [i for i in left_indices3 if i not in grow_indices]
 shrink_indices = random.sample(left_indices4, shrink_count)
+left_indices5 = [i for i in left_indices4 if i not in shrink_indices]
+multi_indices = random.sample(left_indices5, multi_count)
 idx = 0
 for column in range(bricks_column):  # 磚塊列數
     for row in range(bricks_row):  # 磚塊行數
