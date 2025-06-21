@@ -204,7 +204,7 @@ def update_camera(
         # 只有當 allow_breakable 為 True 時才有機率生成紅色平台
         is_breakable = False
         plat_color = platform_color
-        if allow_breakable and random.random() < 0.2:
+        if allow_breakable and random.random() < 0.3:  # 30%機率生成紅色平台
             is_breakable = True
             plat_color = (255, 0, 0)  # 紅色
         new_platform = Platform(x, y, platform_w, platform_h, plat_color, is_breakable)
