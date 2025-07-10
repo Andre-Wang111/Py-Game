@@ -164,4 +164,36 @@
 -   特殊平台的顏色為紅色，並且會隨機混入一般平台列表中
 -   特殊平台的生成機率 20%
 -   當玩家踩到消失平台後，該平台會立即消失
--   特殊平台不可以跳躍
+-   特殊平台可以跳躍
+
+
+### 步驟 11: 載入圖片
+新增os套件，os.chdir(sys.path[0])
+新增一個指令，指令名稱叫做load_doodle_sprites，這個指令是拿來載入image資料夾當中的圖片，有一個圖片是src.png，這張照片當中有很多物件，我們等等要切割他，所以我們先把他讀進來，使用convert_alpha進行轉換存到source_image裡面
+
+新增sprite_data字典，裡面可以放
+"std_platform": (0, 0, 116, 30),  # 標準平台
+"break_platform": (0, 145, 124, 33),  # 可破壞平台
+"spring_normal": (376, 188, 71, 35),  # 普通彈簧
+這幾個是存從src.png裁減照片的座標以及寬度高度，另外這個字典還有放玩家圖片及圖片路徑:
+"player_left_jumping": os.path.join("image", "l.png"),  # 左跳躍
+"player_left_falling": os.path.join("image", "ls.png"),  # 左下落
+"player_right_jumping": os.path.join("image", "r.png"),  # 右跳躍
+"player_right_falling": os.path.join("image", "rs.png"),  # 右下落
+
+接著在新增一個字典sprites，裡面會放已經處理好的圖片，玩家圖片要做convert_alpha處理，其他要裁減的圖片就用source_image.subsurface進行裁切處理，這個字典的key會跟sprite_data的key相同，製作好sprites之後就可以return出去
+
+
+步驟12
+請幫我將角色、平台以及彈簧改成image資料夾當中的照片圖案，如果找不到照片使用原本的方塊圖案顯示
+將背景換成白色、文字改為黑色
+垂直速度小於0表示上升（跳躍中）
+反之當垂直速度大於0表示下降
+
+新增變數facing_right
+當direction>0，facing_right=True，反之。
+預設面相為右邊
+
+新增變數jumping紀錄玩家跳躍狀態
+如果有載入照片的話，確認角色存在，根據角色當前狀態選擇適合的圖片，調整大小為實際尺寸，繪製到視窗上面，如果找不到該角色照片就使用原本的方形
+剩下的平台和彈簧依此類推
