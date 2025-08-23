@@ -11,8 +11,10 @@ FPS = pygame.time.Clock()  # 設定 FPS 時脈
 ###################### 載入背景圖片 #######################
 # 設定圖片路徑
 base_dir = os.path.dirname(os.path.abspath(__file__))  # 取得目前檔案所在資料夾
-# 修正圖片資料夾路徑，指向上層的 image 資料夾
-image_dir = os.path.join(base_dir, "..", "image")  # 圖片資料夾路徑（上層）
+# 圖片資料夾路徑：使用與此檔案同一資料夾下的 `image` 子資料夾
+# 原本使用上層路徑會導致找不到放在 `Galaxy Lancer/image` 內的資源，
+# 因此改為指向本資料夾的 image 子資料夾。
+image_dir = os.path.join(base_dir, "image")  # 圖片資料夾路徑（同目錄下的 image）
 bg_path = os.path.join(image_dir, "space.png")  # 背景圖片完整路徑
 
 # 載入圖片
@@ -96,6 +98,10 @@ invuln_duration = 60  # 無敵持續時間，60 幀約等於 1 秒（60 FPS）
 flash_counter = 0  # 用於控制閃爍顯示的計數器
 game_over = False  # 當血量歸零時切換為 True，顯示結束畫面
 
+# 新增玩家分數變數：分數在遊戲過程中累積，擊敗敵人時會增加
+# 初始分數設為 0（整數），每擊敗一個敵人會加 10
+score = 0  # 玩家目前分數
+
 # ----------------- 新增能量（Energy）相關變數 -----------------
 # 能量系統：最大能量、目前能量、每次發射消耗、回復量與回復間隔
 energy_max = 10  # 能量上限為 10
@@ -107,6 +113,13 @@ energy_regen_interval_ms = 5000  # 能量回復間隔（毫秒），設定為 50
 last_energy_regen_time = (
     pygame.time.get_ticks()
 )  # 紀錄上次回復能量的時間（初始化為現在）
+# ----------------- 新增血量回復系統變數 -----------------
+# health_regen_amount: 每次血量回復的數值（此處設定為 20 點）
+health_regen_amount = 20  # 每次回復 20 點血量（新增變數，詳述回復值）
+# health_regen_interval_ms: 血量回復的時間間隔（毫秒），此處設定為 10000ms = 10 秒
+health_regen_interval_ms = 10000  # 設定為 10 秒一次回復（毫秒）
+# last_health_regen_time: 使用 pygame.time.get_ticks() 記錄上一次回復血量的時間戳（毫秒）
+last_health_regen_time = pygame.time.get_ticks()  # 初始設定為現在的時間（防止馬上回復）
 
 # 載入遊戲結束畫面圖片（血量為 0 時顯示）
 gameover_img = pygame.image.load(os.path.join(image_dir, "gameover (1).png"))
@@ -344,6 +357,9 @@ while True:
                     bullets.remove(b)
                 if e in enemies:
                     enemies.remove(e)
+                    # 擊敗敵人時增加分數：每個敵人固定加 10 分
+                    # 使用全域 score 變數來累積玩家分數
+                    score += 10  # 分數增加 10
                 # 該子彈已被移除，跳出敵人迴圈並處理下一顆子彈
                 break
 
@@ -449,6 +465,24 @@ while True:
         go_rect.centerx = bg_width // 2
         go_rect.centery = bg_height // 2
         screen.blit(gameover_img, go_rect)
+        # 在 gameover 畫面下方顯示最終分數，使用英文格式 'Score: {score}'
+        try:
+            # 使用較大的字體顯示最終分數以便清楚可見（size 36）
+            go_font = pygame.font.SysFont(None, 36)  # 新增：game over 分數字體
+            # 使用英文顯示格式 Score: {score}，符合需求
+            final_text = go_font.render(
+                f"Score: {score}", True, (255, 255, 255)
+            )  # 新增：渲染最終分數
+            # 將文字置中並放在 gameover 圖片下方 10 像素處
+            final_x = (
+                bg_width // 2 - final_text.get_width() // 2
+            )  # 新增：計算水平置中 x
+            final_y = go_rect.bottom + 10  # 新增：計算 y 座標在圖片下方 10 像素
+            # 把最終分數繪製到畫面上
+            screen.blit(final_text, (final_x, final_y))  # 新增：繪製最終分數文字
+        except Exception:
+            # 若字型渲染發生問題則略過，仍保持 gameover 畫面可見
+            pass
 
     # ------------------ 繪製血量條（顯示在畫面左上） ------------------
     # 背景條
@@ -471,6 +505,23 @@ while True:
         # 若字型渲染發生問題則略過（確保持續運行）
         pass
 
+    # ------------------ 繪製分數（顯示在畫面右上，字體較大以便閱讀） ------------------
+    try:
+        # 建立一個較大的字體，用來顯示右上角的即時分數（size 36）
+        score_font = pygame.font.SysFont(None, 36)  # 新增：更大字體方便閱讀
+        # 使用較大字體渲染分數文字，顯示格式為 Score: {score}
+        score_text = score_font.render(
+            f"Score: {score}", True, (255, 255, 255)
+        )  # 新增：渲染分數文字
+        # 計算文字放置位置：畫面右上，距離右邊 20 像素、上方 20 像素
+        score_pos_x = bg_width - score_text.get_width() - 20  # 新增：計算 x 座標
+        score_pos_y = 20  # 新增：設定 y 座標為 20
+        # 在畫面上繪製分數文字
+        screen.blit(score_text, (score_pos_x, score_pos_y))  # 新增：將分數貼到畫面上
+    except Exception:
+        # 若字型渲染或繪製發生問題則略過，避免影響主迴圈執行
+        pass
+
     # ----------------- 能量回復邏輯（每隔指定毫秒回復） -----------------
     # 使用 pygame.time.get_ticks() 以毫秒為單位追蹤時間，當超過回復間隔時增加能量
     current_time_ms = pygame.time.get_ticks()  # 取得目前時間（毫秒）
@@ -480,6 +531,18 @@ while True:
         energy = min(energy_max, energy + energy_regen_amount)
         # 更新上次回復時間為現在（防止在同一幀內重覆回復）
         last_energy_regen_time = current_time_ms
+
+    # ----------------- 血量回復邏輯（每隔指定毫秒回復） -----------------
+    # 使用 pygame.time.get_ticks() 以毫秒為單位追蹤時間，當超過血量回復間隔時增加玩家血量
+    # current_time_ms 已在上方取得，直接使用以避免重複呼叫
+    # 當距離上次血量回復超過設定間隔且遊戲未結束時，回復血量
+    if not game_over and (
+        current_time_ms - last_health_regen_time >= health_regen_interval_ms
+    ):
+        # 增加血量（每次固定回復 health_regen_amount）並確保不超過最大值 100
+        player_hp = min(100, player_hp + health_regen_amount)
+        # 更新上次血量回復時間為現在（避免在同一幀內重覆回復）
+        last_health_regen_time = current_time_ms
 
     # ------------------ 繪製能量條（顯示於血量條下方） ------------------
     # 能量條位置略微下移以避免與血量文字重疊
